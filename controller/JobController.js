@@ -1,0 +1,91 @@
+const JobService = require('../service/JobService');
+const Job = require("../model/Job");
+const mongoose = require("mongoose");
+
+const create = async (req, res) => {
+  try {
+    const jobData = req.body;
+    const newJob = await JobService.createJob(jobData);
+    res.status(201).json({ success: true, data: newJob });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getAll = async (req, res) => {
+  try {
+    const filters = req.query; // Optional filters for search
+    const jobs = await JobService.getAllJobs(filters);
+    res.status(200).json({ success: true, data: jobs });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const getById = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+    res.status(200).json(job);
+  } catch (e) {
+    res.status(500).json({ message: "Error fetching job"});
+  }
+};
+
+
+
+
+
+const update = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const jobData = req.body;
+    const updatedJob = await JobService.updateJob(id, jobData);
+    if (!updatedJob) return res.status(404).json({ success: false, message: 'Job not found' });
+    res.status(200).json({ success: true, data: updatedJob });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+const getByEmployerId = async (req, res) => {
+    try {
+      const { employerId } = req.params;
+  
+
+      if (!mongoose.Types.ObjectId.isValid(employerId)) {
+        return res.status(400).json({ error: "Invalid employer ID format." });
+      }
+  
+      // Call the service to get jobs by employerId
+      const jobs = await JobService.getJobsByEmployerId(employerId);
+      if (!jobs || jobs.length === 0) {
+        return res.status(404).json({ error: "No jobs found for this employer." });
+      }
+  
+      return res.status(200).json(jobs);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  };
+const deleteById= async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedJob = await JobService.deleteJob(id);
+    if (!deletedJob) return res.status(404).json({ success: false, message: 'Job not found' });
+    res.status(200).json({ success: true, message: 'Job deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+
+};
+
+module.exports = {
+  create,
+  getAll,
+  getById,
+  update,
+  deleteById,
+  getByEmployerId,
+};
