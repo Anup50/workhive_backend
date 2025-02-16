@@ -50,6 +50,19 @@ const JobSchema = new mongoose.Schema({
   },
 });
 
+JobSchema.pre("save", function (next) {
+  if (this.isModified("skillsRequired")) {
+    this.skillsRequired = this.skillsRequired
+      .flatMap((skill) =>
+        typeof skill === "string"
+          ? skill.split(",").map((s) => s.trim())
+          : skill
+      )
+      .map((skill) => skill.toLowerCase());
+  }
+  next();
+});
+
 const Job = mongoose.model("Job", JobSchema);
 
 module.exports = Job;
