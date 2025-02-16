@@ -79,7 +79,15 @@ const deleteById = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-
+const getRecommended = async (req, res) => {
+  try {
+    const { jobSeekerId } = req.params;
+    const recommendedJobs = await JobService.getRecommendedJobs(jobSeekerId);
+    res.status(200).json({ success: true, data: recommendedJobs });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
 module.exports = {
   create,
   getAll,
@@ -87,4 +95,5 @@ module.exports = {
   update,
   deleteById,
   getByEmployerId,
+  getRecommended,
 };
