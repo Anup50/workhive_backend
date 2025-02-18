@@ -57,6 +57,13 @@ class JobSeekerService {
   async getAllJobSeekers(filter = {}) {
     return await JobSeeker.find(filter).populate("userId");
   }
+  async getJobSeekerByUserId(userId) {
+    const jobSeeker = await JobSeeker.findOne({ userId });
+    if (!jobSeeker) {
+      throw new Error("JobSeeker profile not found");
+    }
+    return jobSeeker;
+  }
 }
 
 module.exports = new JobSeekerService();
