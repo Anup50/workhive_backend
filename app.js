@@ -13,7 +13,7 @@ const ApplicationRouter = require("./routes/ApplicationRoute");
 const BookmarkRouter = require("./routes/BookmarkRoute");
 const app = express();
 const path = require("path");
-
+const cookieParser = require("cookie-parser");
 connectDB();
 app.use(
   cors({
@@ -22,6 +22,7 @@ app.use(
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json());
 
 app.use("/api/role", RoleRouter);
