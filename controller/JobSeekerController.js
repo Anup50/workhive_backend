@@ -1,10 +1,8 @@
-// controllers/jobSeekerController.js
 const jobSeekerService = require("../service/JobSeekerService");
 
 class JobSeekerController {
   async create(req, res) {
     try {
-      // Add the uploaded file's filename to the request body
       if (req.file && req.file.filename) {
         req.body.profilePicture = req.file.filename;
       }
@@ -17,7 +15,6 @@ class JobSeekerController {
     }
   }
 
-  // Get a JobSeeker by ID
   async getById(req, res) {
     try {
       const jobSeeker = await jobSeekerService.getJobSeekerById(req.params.id);
@@ -32,15 +29,12 @@ class JobSeekerController {
     }
   }
 
-  // Update a JobSeeker
   async update(req, res) {
     try {
       const { id } = req.params;
 
-      // Start with the data from the request body
       const updateData = { ...req.body };
 
-      // Add the profile picture if a file was uploaded
       if (req.file && req.file.filename) {
         updateData.profilePicture = req.file.filename;
       }
@@ -59,7 +53,6 @@ class JobSeekerController {
     }
   }
 
-  // Delete a JobSeeker
   async delete(req, res) {
     try {
       const deletedJobSeeker = await jobSeekerService.deleteJobSeeker(
@@ -78,7 +71,6 @@ class JobSeekerController {
     }
   }
 
-  // Get all JobSeekers
   async getAll(req, res) {
     try {
       const jobSeekers = await jobSeekerService.getAllJobSeekers(req.query);
@@ -95,6 +87,15 @@ class JobSeekerController {
       res.status(200).json({ success: true, data: req.file.filename });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
+    }
+  }
+  async getJobSeekerId(req, res) {
+    try {
+      const userId = req.user.id;
+      const jobSeeker = await jobSeekerService.getJobSeekerByUserId(userId);
+      res.json({ jobSeekerId: jobSeeker._id });
+    } catch (error) {
+      res.status(500).json({ message: "Server error", error: error.message });
     }
   }
 }
