@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const { add, findAll, update } = require("../controller/EmployerController");
+const {
+  add,
+  findAll,
+  update,
+  getEmployerId,
+} = require("../controller/EmployerController");
 const { authenticateToken, authorize } = require("../security/Auth");
 const multer = require("multer");
 
@@ -17,5 +22,5 @@ const upload = multer({ storage });
 router.get("/", findAll);
 router.post("/add", upload.single("companyLogo"), add);
 router.put("/update/:id", upload.single("companyLogo"), update);
-
+router.get("/getEmployerId", authenticateToken, getEmployerId);
 module.exports = router;
