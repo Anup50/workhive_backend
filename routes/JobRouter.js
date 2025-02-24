@@ -11,7 +11,7 @@ const {
 const router = express.Router();
 
 router.post("/", create);
-router.get("/", getAll);
+router.get("/getall", getAll);
 router.put("/:id", update);
 router.delete("/:id", deleteById);
 router.get("/employer/:employerId", getByEmployerId);
