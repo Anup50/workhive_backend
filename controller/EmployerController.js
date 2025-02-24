@@ -56,8 +56,24 @@ const findAll = async (req, res) => {
     res.json(e);
   }
 };
+const getEmployerId = async (req, res) => {
+  try {
+    const employer = await Employer.findOne({ userId: req.user.id });
+    if (!employer) {
+      return res.status(404).json({ message: "Employer profile not found" });
+    }
+    res.status(200).json({ employerId: employer._id });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch employer ID",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   add,
   update,
   findAll,
+  getEmployerId,
 };
