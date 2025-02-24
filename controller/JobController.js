@@ -14,10 +14,14 @@ const create = async (req, res) => {
 
 const getAll = async (req, res) => {
   try {
-    const filters = req.query; // Optional filters for search
+    const filters = req.query;
     const jobs = await JobService.getAllJobs(filters);
+
+    console.log("Jobs Data:", JSON.stringify(jobs, null, 2));
+
     res.status(200).json({ success: true, data: jobs });
   } catch (error) {
+    console.error("Error fetching jobs:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
