@@ -11,6 +11,7 @@ const JobSeekerRouter = require("./routes/JobSeekerRoute");
 const ResumeRouter = require("./routes/ResumeRoute");
 const ApplicationRouter = require("./routes/ApplicationRoute");
 const BookmarkRouter = require("./routes/BookmarkRoute");
+const SearchRouter = require("./routes/SearchRoute");
 const app = express();
 const path = require("path");
 const cookieParser = require("cookie-parser");
@@ -33,7 +34,7 @@ app.use("/api/jobseeker", JobSeekerRouter);
 app.use("/api/resume", ResumeRouter);
 app.use("/api/application", ApplicationRouter);
 app.use("/api/bookmark", BookmarkRouter);
-
+app.use("/api/search", SearchRouter);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const port = 3000;

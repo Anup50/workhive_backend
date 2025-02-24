@@ -29,7 +29,6 @@ class JobService {
       return job;
     });
   }
-
   static async getJobById(jobId) {
     const job = await Job.findById(jobId).populate(
       "employer",
