@@ -1,5 +1,5 @@
 const Employer = require("../model/Employer");
-
+const { getFullImageUrl } = require("../middleware/ImageUtils");
 const add = async (req, res) => {
   try {
     const {
@@ -61,6 +61,12 @@ const findById = async (req, res) => {
     const employer = await Employer.findById(req.params.id);
     if (!employer) {
       return res.status(404).json({ message: "Employer not found" });
+    }
+    if (employer.companyLogo) {
+      employer.companyLogo = getFullImageUrl(
+        "companyLogo",
+        employer.companyLogo
+      );
     }
     res.status(200).json(employer);
   } catch (e) {
