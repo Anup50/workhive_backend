@@ -1,5 +1,6 @@
 const Employer = require("../model/Employer");
 const Job = require("../model/Job");
+const { getFullImageUrl } = require("../middleware/ImageUtils");
 const searchEmployers = async (req, res) => {
   try {
     const query = req.params.query.trim();
@@ -7,11 +8,17 @@ const searchEmployers = async (req, res) => {
       companyName: { $regex: new RegExp(query, "i") }, // Case-insensitive search
     });
 
-    if (employers.length === 0) {
-      return res.status(404).json({ message: "No employers found" });
-    }
+    const employersWithFullImages = employers.map((employer) => {
+      if (employer.companyLogo) {
+        employer.companyLogo = getFullImageUrl(
+          "companyLogo",
+          employer.companyLogo
+        );
+      }
+      return employer;
+    });
 
-    res.status(200).json(employers);
+    res.status(200).json(employersWithFullImages);
   } catch (e) {
     res
       .status(500)
@@ -22,16 +29,21 @@ const searchEmployers = async (req, res) => {
 const searchJobs = async (req, res) => {
   try {
     const query = req.params.query.trim();
-
     const jobs = await Job.find({
-      title: { $regex: new RegExp(query, "i") }, // Case-insensitive search
+      title: { $regex: new RegExp(query, "i") },
+    }).populate("employer", "companyName companyLogo location");
+
+    const jobsWithFullImages = jobs.map((job) => {
+      if (job.employer && job.employer.companyLogo) {
+        job.employer.companyLogo = getFullImageUrl(
+          "companyLogo",
+          job.employer.companyLogo
+        );
+      }
+      return job;
     });
 
-    if (jobs.length === 0) {
-      return res.status(404).json({ message: "No jobs found" });
-    }
-
-    res.status(200).json(jobs);
+    res.status(200).json(jobsWithFullImages);
   } catch (e) {
     res.status(500).json({ error: "Error fetching jobs", details: e.message });
   }

@@ -56,6 +56,19 @@ const findAll = async (req, res) => {
     res.json(e);
   }
 };
+const findById = async (req, res) => {
+  try {
+    const employer = await Employer.findById(req.params.id);
+    if (!employer) {
+      return res.status(404).json({ message: "Employer not found" });
+    }
+    res.status(200).json(employer);
+  } catch (e) {
+    res
+      .status(500)
+      .json({ message: "Error fetching employer", error: e.message });
+  }
+};
 const getEmployerId = async (req, res) => {
   try {
     const employer = await Employer.findOne({ userId: req.user.id });
@@ -75,5 +88,6 @@ module.exports = {
   add,
   update,
   findAll,
+  findById,
   getEmployerId,
 };
