@@ -1,5 +1,6 @@
 const Employer = require("../model/Employer");
 const { getFullImageUrl } = require("../middleware/ImageUtils");
+const Job = require("../model/Job");
 const add = async (req, res) => {
   try {
     const {
@@ -58,23 +59,48 @@ const findAll = async (req, res) => {
 };
 const findById = async (req, res) => {
   try {
-    const employer = await Employer.findById(req.params.id);
+    // Find the employer by ID
+    const employer = await Employer.findById(req.params.employerId);
     if (!employer) {
       return res.status(404).json({ message: "Employer not found" });
     }
+
+    // If employer has a companyLogo, update it to the full URL
     if (employer.companyLogo) {
       employer.companyLogo = getFullImageUrl(
         "companyLogo",
         employer.companyLogo
       );
     }
-    res.status(200).json(employer);
+
+    // Fetch jobs posted by this employer
+    const jobs = await Job.find({ employer: employer._id });
+
+    // Structure response data
+    const employerInfo = {
+      employer: {
+        companyName: employer.companyName,
+        companyWebsite: employer.companyWebsite,
+        companyDescription: employer.companyDescription,
+        companyLogo: employer.companyLogo,
+        location: employer.location,
+        createdAt: employer.createdAt,
+      },
+      post_info: {
+        total_vacancies: jobs.length, // Total jobs posted by employer
+        active_vacancies: jobs.filter((job) => job.isActive).length, // Count only active jobs
+      },
+      jobs, // Include jobs posted by the employer
+    };
+
+    res.status(200).json(employerInfo);
   } catch (e) {
     res
       .status(500)
       .json({ message: "Error fetching employer", error: e.message });
   }
 };
+
 const getEmployerId = async (req, res) => {
   try {
     const employer = await Employer.findOne({ userId: req.user.id });
