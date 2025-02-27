@@ -1,6 +1,16 @@
 // ApplicationRoutes.js
 const express = require("express");
-const applicationController = require("../controller/ApplicationController");
+const {
+  applicationController,
+  isApplied,
+  getAppliedJobs,
+  getApplicantsForJob,
+} = require("../controller/ApplicationController");
+const {
+  authenticateToken,
+  allowSelfOrRole,
+  authorize,
+} = require("../security/Auth");
 
 const router = express.Router();
 
@@ -16,4 +26,8 @@ router.get("/:id", applicationController.getApplicationById);
 // Update application status
 router.put("/:id/status", applicationController.updateApplicationStatus);
 
-module.exports = router; // Ensure you're exporting the router correctly
+router.get("/applicants/:jobId", getApplicantsForJob);
+router.get("/applied-jobs", authenticateToken, getAppliedJobs);
+router.get("/isApplied/:jobId", authenticateToken, isApplied);
+
+module.exports = router;

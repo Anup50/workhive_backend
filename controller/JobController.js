@@ -25,16 +25,12 @@ const getAll = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
-
 const getById = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job) {
-      return res.status(404).json({ message: "Job not found" });
-    }
-    res.status(200).json(job);
-  } catch (e) {
-    res.status(500).json({ message: "Error fetching job" });
+    const job = await JobService.getJobById(req.params.id);
+    res.status(200).json({ success: true, data: job });
+  } catch (error) {
+    res.status(404).json({ success: false, message: error.message });
   }
 };
 
