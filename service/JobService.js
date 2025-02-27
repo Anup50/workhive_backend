@@ -34,18 +34,22 @@ class JobService {
       "employer",
       "companyName companyLogo location"
     );
+
     if (!job) {
       throw new Error("Job not found.");
     }
-    if (!job.employer) {
+
+    if (job.employer) {
+      if (job.employer.companyLogo) {
+        job.employer.companyLogo = getFullImageUrl(
+          "companyLogo",
+          job.employer.companyLogo
+        );
+      }
+    } else {
       throw new Error("Employer does not exist.");
     }
-    if (job.employer.companyLogo) {
-      job.employer.companyLogo = getFullImageUrl(
-        "companyLogo",
-        job.employer.companyLogo
-      );
-    }
+
     return job;
   }
 
