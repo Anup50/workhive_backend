@@ -9,7 +9,6 @@ const findAll = async (req, res) => {
   }
 };
 
-//register
 const add = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -19,9 +18,24 @@ const add = async (req, res) => {
       password,
       role,
     });
-    res.status(201).json(result);
+
+    if (result.success) {
+      res.status(201).json({
+        success: true,
+        message: result.message || "User registered successfully!",
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.message || "Registration failed. Please try again.",
+      });
+    }
   } catch (e) {
-    res.status(500).json({ message: "Error creating user", error: e.message });
+    res.status(500).json({
+      success: false,
+      message: "Error creating user",
+      error: e.message,
+    });
   }
 };
 
