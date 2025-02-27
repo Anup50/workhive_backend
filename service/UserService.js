@@ -13,7 +13,6 @@ const generateToken = (user) => {
   });
 };
 
-// Register User
 async function registerUser({ name, email, password, role }) {
   if (!mongoose.Types.ObjectId.isValid(role)) {
     throw { status: 400, message: "Invalid role ID" };
@@ -32,9 +31,10 @@ async function registerUser({ name, email, password, role }) {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const newUser = new User({ name, email, password: hashedPassword, role });
+
   await newUser.save();
 
-  return { message: "User registered successfully" };
+  return { success: true, message: "User registered successfully" };
 }
 
 // Login User
