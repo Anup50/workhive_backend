@@ -58,11 +58,16 @@ class JobSeekerService {
     return await JobSeeker.find(filter).populate("userId");
   }
   async getJobSeekerByUserId(userId) {
-    const jobSeeker = await JobSeeker.findOne({ userId });
-    if (!jobSeeker) {
-      throw new Error("JobSeeker profile not found");
+    try {
+      const jobSeeker = await JobSeeker.findOne({ userId });
+      if (!jobSeeker) {
+        return null;
+      }
+      return jobSeeker;
+    } catch (error) {
+      console.error("Error fetching job seeker:", error);
+      throw new Error("Failed to fetch job seeker.");
     }
-    return jobSeeker;
   }
 }
 
