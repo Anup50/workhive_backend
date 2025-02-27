@@ -92,9 +92,20 @@ class JobSeekerController {
   async getJobSeekerId(req, res) {
     try {
       const userId = req.user.id;
+
+      // Check if a JobSeeker exists for the given userId
       const jobSeeker = await jobSeekerService.getJobSeekerByUserId(userId);
+
+      if (!jobSeeker) {
+        // If no JobSeeker profile exists, return a response with null for jobSeekerId
+        return res.json({ jobSeekerId: null });
+      }
+
+      // If a JobSeeker profile exists, return the jobSeekerId
       res.json({ jobSeekerId: jobSeeker._id });
     } catch (error) {
+      // Handle unexpected errors
+      console.error("Error fetching job seeker:", error);
       res.status(500).json({ message: "Server error", error: error.message });
     }
   }
