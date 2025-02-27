@@ -73,10 +73,9 @@ const findById = async (req, res) => {
       );
     }
 
-    // Fetch jobs posted by this employer
     const jobs = await Job.find({ employer: employer._id });
 
-    // Structure response data
+    const activeJobs = jobs.filter((job) => job.isActive);
     const employerInfo = {
       employer: {
         companyName: employer.companyName,
@@ -87,10 +86,13 @@ const findById = async (req, res) => {
         createdAt: employer.createdAt,
       },
       post_info: {
-        total_vacancies: jobs.length, // Total jobs posted by employer
-        active_vacancies: jobs.filter((job) => job.isActive).length, // Count only active jobs
+        total_vacancies: jobs.length,
+        active_vacancies: activeJobs.length,
       },
-      jobs, // Include jobs posted by the employer
+      jobs: {
+        allJobs: jobs,
+        activeJobs: activeJobs,
+      },
     };
 
     res.status(200).json(employerInfo);
