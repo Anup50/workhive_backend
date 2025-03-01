@@ -1,17 +1,32 @@
+const JobSeeker = require("../model/JobSeeker"); // Add this import
 const applicationService = require("../service/ApplicationService");
 const Application = require("../model/Applications");
 const Job = require("../model/Job");
 
+const { getFullImageUrl } = require("../middleware/ImageUtils");
+
 const isApplied = async (req, res) => {
   try {
-    const { jobId } = req.params; // Get jobId from URL params
-    const jobSeekerId = req.user.id; // Assuming you have authentication middleware
+    const { jobId } = req.params;
+    const userId = req.user.id;
 
-    const application = await Application.findOne({ jobId, jobSeekerId });
+    const jobSeeker = await JobSeeker.findOne({ userId });
+    if (!jobSeeker) {
+      return res.status(200).json({
+        success: true,
+        applied: false,
+      });
+    }
+
+    const application = await Application.findOne({
+      jobId,
+      jobSeekerId: jobSeeker._id,
+    });
 
     res.status(200).json({
       success: true,
-      applied: !!application, // Returns true if application exists, else false
+      applied: !!application,
+      status: application?.status || null,
     });
   } catch (error) {
     console.error("Error checking application status:", error);
@@ -21,77 +36,169 @@ const isApplied = async (req, res) => {
     });
   }
 };
+
 const getAppliedJobs = async (req, res) => {
   try {
-    const jobSeekerId = req.user.id; // Assuming user ID is available from auth middleware
+    const { jobSeekerId } = req.params;
 
-    const applications = await Application.find({ jobSeekerId })
-      .populate({
-        path: "jobId",
-        select:
-          "title description employer location salary jobType experienceLevel deadline skillsRequired isActive datePosted",
-        populate: {
-          path: "employer",
-          select: "companyName companyLogo location",
-        },
+    // Get raw applications
+    const applications = await Application.find({ jobSeekerId });
+
+    // Manually populate and transform URLs
+    const populatedApplications = await Promise.all(
+      applications.map(async (app) => {
+        // Fetch job details with employer
+        const job = await Job.findById(app.jobId)
+          .populate("employer", "companyName companyLogo location")
+          .lean();
+
+        // Transform company logo URL
+        if (job?.employer?.companyLogo) {
+          job.employer.companyLogo = getFullImageUrl(
+            "companyLogo",
+            job.employer.companyLogo
+          );
+        }
+
+        // Fetch job seeker details with user
+        const jobSeeker = await JobSeeker.findById(app.jobSeekerId)
+          .populate("userId", "name email")
+          .lean();
+
+        // Transform profile picture URL if needed
+        if (jobSeeker?.profilePicture) {
+          jobSeeker.profilePicture = getFullImageUrl(
+            "profilePicture",
+            jobSeeker.profilePicture
+          );
+        }
+
+        return {
+          ...app.toObject(),
+          job: job
+            ? {
+                _id: job._id,
+                title: job.title,
+                employer: job.employer,
+                location: job.location,
+                salary: job.salary,
+                jobType: job.jobType,
+                experienceLevel: job.experienceLevel,
+              }
+            : null,
+          jobSeeker: jobSeeker
+            ? {
+                bio: jobSeeker.bio,
+                skills: jobSeeker.skills,
+                profilePicture: jobSeeker.profilePicture,
+                user: jobSeeker.userId,
+              }
+            : null,
+        };
       })
-      .sort({ applicationDate: -1 }); // Sort by latest applied jobs
-
-    const appliedJobs = applications.map((application) => ({
-      _id: application.jobId._id,
-      title: application.jobId.title,
-      description: application.jobId.description,
-      employer: application.jobId.employer
-        ? {
-            _id: application.jobId.employer._id,
-            companyName: application.jobId.employer.companyName,
-            companyLogo: application.jobId.employer.companyLogo,
-            location: application.jobId.employer.location,
-          }
-        : null,
-      location: application.jobId.location,
-      salary: application.jobId.salary,
-      jobType: application.jobId.jobType,
-      experienceLevel: application.jobId.experienceLevel,
-      deadline: application.jobId.deadline,
-      skillsRequired: application.jobId.skillsRequired,
-      isActive: application.jobId.isActive,
-      datePosted: application.jobId.datePosted,
-      applicationDate: application.applicationDate,
-      status: application.status,
-    }));
+    );
 
     res.status(200).json({
       success: true,
-      data: appliedJobs,
+      data: populatedApplications,
     });
   } catch (error) {
-    console.error("Error fetching applied jobs:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 class ApplicationController {
+  // async create(req, res) {
+  //   try {
+  //     const { jobId, jobSeekerId, message } = req.body;
+
+  //     const newApplication = await applicationService.createApplication({
+  //       jobId,
+  //       jobSeekerId,
+  //       message,
+  //     });
+
+  //     res.status(201).json({ success: true, data: newApplication });
+  //   } catch (error) {
+  //     res.status(400).json({ success: false, message: error.message });
+  //   }
+  // }
   async create(req, res) {
     try {
-      const { jobId, jobSeekerId, message } = req.body;
+      const { jobId } = req.body;
+      const userId = req.user.id;
 
-      // Create application data
+      // Find job seeker profile
+      const jobSeeker = await JobSeeker.findOne({ userId });
+      if (!jobSeeker) {
+        return res.status(403).json({
+          success: false,
+          message: "Complete your job seeker profile first",
+        });
+      }
+
+      // Check for existing application
+      const existingApplication =
+        await applicationService.checkExistingApplication(jobId, jobSeeker._id);
+      if (existingApplication) {
+        return res.status(400).json({
+          success: false,
+          message: "You've already applied to this job",
+        });
+      }
+
+      // Create new application
       const newApplication = await applicationService.createApplication({
         jobId,
-        jobSeekerId,
-        message,
+        jobSeekerId: jobSeeker._id,
+        status: "Pending",
       });
+
+      // Increment job application count
+      await applicationService.incrementJobApplicationCount(jobId);
 
       res.status(201).json({ success: true, data: newApplication });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   }
+  async withdraw(req, res) {
+    try {
+      const { jobId } = req.params;
+      const userId = req.user.id;
 
+      const jobSeeker = await JobSeeker.findOne({ userId });
+      if (!jobSeeker) {
+        return res.status(403).json({
+          success: false,
+          message: "Job seeker profile not found",
+        });
+      }
+
+      const result = await applicationService.deleteApplication(
+        jobId,
+        jobSeeker._id
+      );
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: "Application not found",
+        });
+      }
+
+      // Decrement job application count
+      await applicationService.decrementJobApplicationCount(jobId);
+
+      res.status(200).json({
+        success: true,
+        message: "Application withdrawn successfully",
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
   async getApplicationsByJob(req, res) {
     try {
       const applications = await applicationService.getApplicationsByJob(
@@ -129,20 +236,34 @@ class ApplicationController {
 }
 const getApplicantsForJob = async (req, res) => {
   try {
-    const { jobId } = req.params; // Get jobId from request parameters
+    const { jobId } = req.params;
 
     const applications = await Application.find({ jobId }).populate({
       path: "jobSeekerId",
-      select: "fullName email profilePicture resume experience", // Select the fields you need
+      select: "userId profilePicture resume experience",
+      populate: {
+        path: "userId",
+        select: "name email",
+        model: "User",
+      },
     });
 
     const applicants = applications.map((app) => ({
-      userId: app.jobSeekerId._id,
-      fullName: app.jobSeekerId.fullName,
-      email: app.jobSeekerId.email,
-      profilePicture: app.jobSeekerId.profilePicture,
-      resume: app.jobSeekerId.resume,
-      experience: app.jobSeekerId.experience,
+      _id: app._id,
+      status: app.status,
+      applicationDate: app.applicationDate,
+      user: {
+        id: app.jobSeekerId.userId._id,
+        name: app.jobSeekerId.userId.name,
+        email: app.jobSeekerId.userId.email,
+      },
+      jobSeeker: {
+        profilePicture: app.jobSeekerId.profilePicture
+          ? getFullImageUrl("profilePicture", app.jobSeekerId.profilePicture)
+          : null,
+        resume: app.jobSeekerId.resume,
+        experience: app.jobSeekerId.experience,
+      },
     }));
 
     res.status(200).json({ success: true, data: applicants });
@@ -152,9 +273,12 @@ const getApplicantsForJob = async (req, res) => {
   }
 };
 
+const applicationController = new ApplicationController();
+
 module.exports = {
-  applicationController: new ApplicationController(),
+  applicationController,
   getAppliedJobs,
   isApplied,
   getApplicantsForJob,
+  withdrawApplication: applicationController.withdraw,
 };
