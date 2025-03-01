@@ -25,19 +25,19 @@ const JobSeekerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-JobSeekerSchema.pre("save", function (next) {
-  if (this.isModified("skills")) {
-    this.skills = this.skills
-      .flatMap((skill) =>
-        typeof skill === "string"
-          ? skill.split(",").map((s) => s.trim())
-          : skill
-      )
-      .filter((skill) => skill)
-      .map((skill) => skill.toLowerCase());
-  }
-  next();
-});
+// JobSeekerSchema.pre("save", function (next) {
+//   if (this.isModified("skills")) {
+//     this.skills = this.skills
+//       .flatMap((skill) =>
+//         typeof skill === "string"
+//           ? skill.split(",").map((s) => s.trim())
+//           : skill
+//       )
+//       .filter((skill) => skill)
+//       .map((skill) => skill.toLowerCase());
+//   }
+//   next();
+// });
 
 const JobSeeker = mongoose.model("JobSeeker", JobSeekerSchema);
 module.exports = JobSeeker;

@@ -2,6 +2,8 @@ const Employer = require("../model/Employer");
 const { getFullImageUrl } = require("../middleware/ImageUtils");
 const Job = require("../model/Job");
 const add = async (req, res) => {
+  console.log("Request Body:", req.body);
+  console.log("Request File:", req.file);
   try {
     const {
       userId,
@@ -19,7 +21,7 @@ const add = async (req, res) => {
       companyLogo: req.file.originalname,
     });
     await employer.save();
-    res.status(201).json(employer);
+    res.status(201).json({ success: true, data: employer });
   } catch (e) {
     res.json(e);
   }
@@ -107,7 +109,7 @@ const getEmployerId = async (req, res) => {
   try {
     const employer = await Employer.findOne({ userId: req.user.id });
     if (!employer) {
-      return res.status(404).json({ message: "Employer profile not found" });
+      return res.json({ employer: null });
     }
     res.status(200).json({ employerId: employer._id });
   } catch (error) {

@@ -88,6 +88,34 @@ const getRecommended = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+const getSimilarJobs = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 4 } = req.query;
+
+    const jobs = await JobService.getSimilarJobs(
+      id,
+      parseInt(page),
+      parseInt(limit)
+    );
+
+    res.json({
+      success: true,
+      data: jobs,
+      meta: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   create,
   getAll,
@@ -96,4 +124,5 @@ module.exports = {
   deleteById,
   getByEmployerId,
   getRecommended,
+  getSimilarJobs,
 };
