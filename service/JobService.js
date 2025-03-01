@@ -81,40 +81,83 @@ class JobService {
       throw new Error("Job seeker not found.");
     }
 
-    // Normalize skills
+    // Process skills with proper normalization
     let skills = jobSeeker.skills;
-    if (typeof skills === "string") {
-      skills = skills.split(",").map((skill) => skill.trim());
-    } else if (Array.isArray(skills)) {
-      skills = skills.flatMap((skill) => {
-        if (typeof skill === "string") {
-          return skill.split(",").map((s) => s.trim());
-        }
-        return skill;
-      });
-    } else {
-      skills = [];
-    }
+    skills = Array.isArray(skills)
+      ? skills.flatMap((skill) =>
+          typeof skill === "string"
+            ? skill.split(",").map((s) => s.trim().toLowerCase())
+            : []
+        )
+      : [];
+
     if (skills.length === 0) {
       throw new Error("No skills found for this job seeker.");
     }
-    const normalizedSkills = skills.map((skill) => skill.toLowerCase());
 
-    const recommendedJobs = await Job.find({
-      skillsRequired: { $in: normalizedSkills },
-    }).populate("employer", "companyName companyLogo location");
+    // Use aggregation for case-insensitive matching
+    const recommendedJobs = await Job.aggregate([
+      {
+        $addFields: {
+          lowercaseSkills: {
+            $map: {
+              input: "$skillsRequired",
+              as: "skill",
+              in: { $toLower: "$$skill" },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          lowercaseSkills: { $in: skills },
+          isActive: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "employers",
+          localField: "employer",
+          foreignField: "_id",
+          as: "employer",
+        },
+      },
+      { $unwind: "$employer" },
+      {
+        $addFields: {
+          "employer.companyLogo": {
+            $concat: [
+              "http://localhost:3000/uploads/companylogo_images/",
+              "$employer.companyLogo",
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          location: 1,
+          salary: 1,
+          jobType: 1,
+          experienceLevel: 1,
+          skillsRequired: 1,
+          description: 1,
+          "employer.companyName": 1,
+          "employer.companyLogo": 1,
+          "employer.location": 1,
+          matchScore: {
+            $size: {
+              $setIntersection: ["$lowercaseSkills", skills],
+            },
+          },
+        },
+      },
+      { $sort: { matchScore: -1, datePosted: -1 } },
+    ]);
 
-    return recommendedJobs.map((job) => {
-      if (job.employer && job.employer.companyLogo) {
-        job.employer.companyLogo = getFullImageUrl(
-          "companyLogo",
-          job.employer.companyLogo
-        );
-      }
-      return job;
-    });
+    return recommendedJobs;
   }
-
   static async updateJob(jobId, jobData) {
     if (jobData.employer) {
       const employerExists = await Employer.findById(jobData.employer);
@@ -128,6 +171,170 @@ class JobService {
   static async deleteJob(jobId) {
     return await Job.findByIdAndDelete(jobId);
   }
+
+  static async getSimilarJobs(jobId, page = 1, limit = 4) {
+    console.log("Fetching job with ID:", jobId);
+
+    // Find the current job using the jobId
+    const currentJob = await Job.findById(jobId).lean();
+    console.log("Fetched job:", currentJob);
+
+    if (!currentJob) {
+      throw new Error("Job not found");
+    }
+
+    // Normalize skills for comparison
+    let skills = currentJob.skillsRequired;
+    if (typeof skills === "string") {
+      skills = skills.split(",").map((skill) => skill.trim());
+    } else if (Array.isArray(skills)) {
+      skills = skills.flatMap((skill) => {
+        if (typeof skill === "string") {
+          return skill.split(",").map((s) => s.trim());
+        }
+        return skill;
+      });
+    } else {
+      skills = [];
+    }
+
+    // Find similar jobs based on skills only
+    const similarJobs = await Job.aggregate([
+      {
+        $match: {
+          isActive: true,
+          _id: { $ne: currentJob._id },
+        },
+      },
+      {
+        $addFields: {
+          similarityScore: {
+            $size: {
+              $setIntersection: [skills, "$skillsRequired"],
+            },
+          },
+        },
+      },
+      { $match: { similarityScore: { $gt: 0 } } }, // Only jobs with at least one matching skill
+      { $sort: { similarityScore: -1, datePosted: -1 } }, // Sort by similarity score
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: "employers",
+          localField: "employer",
+          foreignField: "_id",
+          as: "employer",
+        },
+      },
+      { $unwind: "$employer" },
+      {
+        $project: {
+          title: 1,
+          location: 1,
+          jobType: 1,
+          experienceLevel: 1,
+          salary: 1,
+          datePosted: 1,
+          similarityScore: 1,
+          "employer.companyName": 1,
+          "employer.companyLogo": 1,
+        },
+      },
+    ]);
+
+    return similarJobs.map((job) => ({
+      ...job,
+      employer: {
+        ...job.employer,
+        companyLogo: job.employer.companyLogo
+          ? getFullImageUrl("companyLogo", job.employer.companyLogo)
+          : null,
+      },
+    }));
+  }
 }
 
 module.exports = JobService;
+
+// static async getSimilarJobs(jobId, page = 1, limit = 4) {
+//   console.log("Fetching job with ID:", jobId);
+//   const currentJob = await Job.findById(jobId).lean();
+//   console.log("Fetched job:", currentJob);
+
+//   if (!currentJob) {
+//     throw new Error("Job not found");
+//   }
+
+//   const similarityThreshold = 2; // Minimum 2 matching criteria
+
+//   const similarJobs = await Job.aggregate([
+//     {
+//       $match: {
+//         _id: { $ne: currentJob._id },
+//         isActive: true,
+//       },
+//     },
+//     {
+//       $addFields: {
+//         similarityScore: {
+//           $add: [
+//             {
+//               $size: {
+//                 $setIntersection: [
+//                   currentJob.skillsRequired,
+//                   "$skillsRequired",
+//                 ],
+//               },
+//             },
+//             { $cond: [{ $eq: ["$jobType", currentJob.jobType] }, 2, 0] },
+//             {
+//               $cond: [
+//                 { $eq: ["$experienceLevel", currentJob.experienceLevel] },
+//                 1,
+//                 0,
+//               ],
+//             },
+//             { $cond: [{ $eq: ["$location", currentJob.location] }, 1, 0] },
+//           ],
+//         },
+//       },
+//     },
+//     { $match: { similarityScore: { $gte: similarityThreshold } } },
+//     { $sort: { similarityScore: -1, datePosted: -1 } },
+//     { $skip: (page - 1) * limit },
+//     { $limit: limit },
+//     {
+//       $lookup: {
+//         from: "employers",
+//         localField: "employer",
+//         foreignField: "_id",
+//         as: "employer",
+//       },
+//     },
+//     { $unwind: "$employer" },
+//     {
+//       $project: {
+//         title: 1,
+//         location: 1,
+//         jobType: 1,
+//         experienceLevel: 1,
+//         salary: 1,
+//         datePosted: 1,
+//         similarityScore: 1,
+//         "employer.companyName": 1,
+//         "employer.companyLogo": 1,
+//       },
+//     },
+//   ]);
+
+//   return similarJobs.map((job) => ({
+//     ...job,
+//     employer: {
+//       ...job.employer,
+//       companyLogo: job.employer.companyLogo
+//         ? getFullImageUrl("companyLogo", job.employer.companyLogo)
+//         : null,
+//     },
+//   }));
+// }
