@@ -3,12 +3,17 @@ const bookmarkController = require("../controller/BookmarkController");
 
 const router = express.Router();
 
-router.post("/", bookmarkController.create);
+router.post("/", bookmarkController.createBookmark);
 
-router.delete("/:bookmarkId", bookmarkController.remove);
+router.delete("/:jobId/:jobSeekerId", bookmarkController.deleteBookmark);
 
 router.get("/jobSeeker/:jobSeekerId", bookmarkController.getByJobSeeker);
 
 router.get("/job/:jobId", bookmarkController.getByJob);
+
+router.get(
+  "/isBookmarked/:jobId/:jobSeekerId",
+  bookmarkController.isBookmarked
+);
 
 module.exports = router;
