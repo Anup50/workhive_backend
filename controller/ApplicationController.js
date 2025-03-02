@@ -69,7 +69,7 @@ const getAppliedJobs = async (req, res) => {
         if (jobSeeker?.profilePicture) {
           jobSeeker.profilePicture = getFullImageUrl(
             "profilePicture",
-            jobSeeker.profilePicture
+            job.jobSeeker.profilePicture
           );
         }
 
@@ -109,21 +109,6 @@ const getAppliedJobs = async (req, res) => {
 };
 
 class ApplicationController {
-  // async create(req, res) {
-  //   try {
-  //     const { jobId, jobSeekerId, message } = req.body;
-
-  //     const newApplication = await applicationService.createApplication({
-  //       jobId,
-  //       jobSeekerId,
-  //       message,
-  //     });
-
-  //     res.status(201).json({ success: true, data: newApplication });
-  //   } catch (error) {
-  //     res.status(400).json({ success: false, message: error.message });
-  //   }
-  // }
   async create(req, res) {
     try {
       const { jobId } = req.body;
@@ -223,56 +208,119 @@ class ApplicationController {
 
   async updateApplicationStatus(req, res) {
     try {
-      const updatedApplication =
-        await applicationService.updateApplicationStatus(
-          req.params.id,
-          req.body.status
-        );
-      res.status(200).json({ success: true, data: updatedApplication });
+      const { id } = req.params;
+      const { status, employerId } = req.body;
+
+      // Validate status
+      const validStatuses = ["Pending", "Shortlisted", "Accepted", "Rejected"];
+      if (!validStatuses.includes(status)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid status value" });
+      }
+
+      // Check application exists and belongs to employer
+      const application = await Application.findById(id).populate({
+        path: "jobId",
+        select: "employer",
+        match: { employer: employerId },
+      });
+
+      if (!application || !application.jobId) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message: "Application not found or unauthorized",
+          });
+      }
+
+      // Update application
+      const updatedApplication = await Application.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true }
+      ).populate({
+        path: "jobSeekerId",
+        select: "userId skills experience",
+        populate: { path: "userId", select: "name email" },
+      });
+
+      // Send response
+      res.status(200).json({
+        success: true,
+        data: {
+          _id: updatedApplication._id,
+          status: updatedApplication.status,
+          applicant: {
+            name: updatedApplication.jobSeekerId.userId.name,
+            email: updatedApplication.jobSeekerId.userId.email,
+            skills: updatedApplication.jobSeekerId.skills,
+          },
+        },
+      });
     } catch (error) {
-      res.status(400).json({ success: false, message: error.message });
+      console.error("Error updating status:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
     }
   }
+
+  // const getApplicantsForJob = async (req, res) => {
+  //   try {
+  //     const { jobId } = req.params;
+
+  //     const applications = await Application.find({ jobId }).populate({
+  //       path: "jobSeekerId",
+  //       select: "userId profilePicture skills experience",
+  //       populate: {
+  //         path: "userId",
+  //         select: "name email",
+  //         model: "User",
+  //       },
+  //     });
+
+  //     const applicants = applications.map((app) => ({
+  //       _id: app._id,
+  //       status: app.status,
+  //       applicationDate: app.applicationDate,
+  //       user: {
+  //         id: app.jobSeekerId.userId._id,
+  //         name: app.jobSeekerId.userId.name,
+  //         email: app.jobSeekerId.userId.email,
+  //       },
+  //       jobSeeker: {
+  //         profilePicture: app.jobSeekerId.profilePicture
+  //           ? getFullImageUrl("profilePicture", app.jobSeekerId.profilePicture)
+  //           : null,
+  //         resume: app.jobSeekerId.resume,
+  //         experience: app.jobSeekerId.experience,
+  //       },
+  //     }));
+
+  //     res.status(200).json({ success: true, data: applicants });
+  //   } catch (error) {
+  //     console.error("Error fetching applicants:", error);
+  //     res.status(500).json({ success: false, message: "Internal Server Error" });
+  //   }
 }
 const getApplicantsForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    const applications = await Application.find({ jobId }).populate({
-      path: "jobSeekerId",
-      select: "userId profilePicture resume experience",
-      populate: {
-        path: "userId",
-        select: "name email",
-        model: "User",
-      },
-    });
-
-    const applicants = applications.map((app) => ({
-      _id: app._id,
-      status: app.status,
-      applicationDate: app.applicationDate,
-      user: {
-        id: app.jobSeekerId.userId._id,
-        name: app.jobSeekerId.userId.name,
-        email: app.jobSeekerId.userId.email,
-      },
-      jobSeeker: {
-        profilePicture: app.jobSeekerId.profilePicture
-          ? getFullImageUrl("profilePicture", app.jobSeekerId.profilePicture)
-          : null,
-        resume: app.jobSeekerId.resume,
-        experience: app.jobSeekerId.experience,
-      },
-    }));
+    // Use the service method instead of direct DB access
+    const applicants = await applicationService.getApplicantsForJob(jobId);
 
     res.status(200).json({ success: true, data: applicants });
   } catch (error) {
     console.error("Error fetching applicants:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
-
 const applicationController = new ApplicationController();
 
 module.exports = {
