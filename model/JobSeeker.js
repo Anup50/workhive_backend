@@ -38,6 +38,22 @@ const JobSeekerSchema = new mongoose.Schema(
 //   }
 //   next();
 // });
+// Add to your JobSeekerSchema
+JobSeekerSchema.virtual("applications", {
+  ref: "Application",
+  localField: "_id",
+  foreignField: "jobSeekerId",
+});
+
+JobSeekerSchema.virtual("bookmarks", {
+  ref: "Bookmark",
+  localField: "_id",
+  foreignField: "jobSeekerId",
+});
+
+// Enable virtuals in queries
+JobSeekerSchema.set("toObject", { virtuals: true });
+JobSeekerSchema.set("toJSON", { virtuals: true });
 
 const JobSeeker = mongoose.model("JobSeeker", JobSeekerSchema);
 module.exports = JobSeeker;

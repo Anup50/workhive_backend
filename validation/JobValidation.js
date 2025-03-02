@@ -9,14 +9,14 @@ const jobSchema = Joi.object({
     "string.max": "Title cannot exceed {#limit} characters",
   }),
   description: Joi.object({
-    summary: Joi.string().required().min(50).max(1000).messages({
+    summary: Joi.string().required().min(20).max(1000).messages({
       "any.required": "Summary is required",
       "string.empty": "Summary cannot be empty",
       "string.min": "Summary must be at least {#limit} characters",
       "string.max": "Summary cannot exceed {#limit} characters",
     }),
     responsibilities: Joi.array()
-      .items(Joi.string().min(10).max(200).required())
+      .items(Joi.string().min(5).max(200).required())
       .min(1)
       .messages({
         "array.base": "Responsibilities must be an array",
