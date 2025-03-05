@@ -33,7 +33,7 @@ class ApplicationService {
         },
         jobSeeker: {
           profilePicture: app.jobSeekerId.profilePicture
-            ? getFullImageUrl("profilePic", app.jobSeekerId.profilePicture) // ✅ Use "profilePic"
+            ? getFullImageUrl("profilePic", app.jobSeekerId.profilePicture)
             : null,
           skills: app.jobSeekerId.skills,
           experience: app.jobSeekerId.experience,

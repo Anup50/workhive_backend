@@ -37,6 +37,76 @@ const isApplied = async (req, res) => {
   }
 };
 
+// const getAppliedJobs = async (req, res) => {
+//   try {
+//     const { jobSeekerId } = req.params;
+
+//     // Get raw applications
+//     const applications = await Application.find({ jobSeekerId });
+
+//     // Manually populate and transform URLs
+//     const populatedApplications = await Promise.all(
+//       applications.map(async (app) => {
+//         // Fetch job details with employer
+//         const job = await Job.findById(app.jobId)
+//           .populate("employer", "companyName companyLogo location")
+//           .lean();
+
+//         // Transform company logo URL
+//         if (job?.employer?.companyLogo) {
+//           job.employer.companyLogo = getFullImageUrl(
+//             "companyLogo",
+//             job.employer.companyLogo
+//           );
+//         }
+
+//         // Fetch job seeker details with user
+//         const jobSeeker = await JobSeeker.findById(app.jobSeekerId)
+//           .populate("userId", "name email")
+//           .lean();
+
+//         // Transform profile picture URL if needed MADE CHANGE HERE
+//         if (jobSeeker?.profilePicture) {
+//           jobSeeker.profilePicture = getFullImageUrl(
+//             "profilePicture",
+//             jobSeeker.profilePicture
+//           );
+//         }
+
+//         return {
+//           ...app.toObject(),
+//           job: job
+//             ? {
+//                 _id: job._id,
+//                 title: job.title,
+//                 employer: job.employer,
+//                 location: job.location,
+//                 salary: job.salary,
+//                 jobType: job.jobType,
+//                 experienceLevel: job.experienceLevel,
+//               }
+//             : null,
+//           jobSeeker: jobSeeker
+//             ? {
+//                 bio: jobSeeker.bio,
+//                 skills: jobSeeker.skills,
+//                 profilePicture: jobSeeker.profilePicture,
+//                 user: jobSeeker.userId,
+//               }
+//             : null,
+//         };
+//       })
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       data: populatedApplications,
+//     });
+//   } catch (error) {
+//     console.error("Error:", error);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
 const getAppliedJobs = async (req, res) => {
   try {
     const { jobSeekerId } = req.params;
@@ -61,15 +131,13 @@ const getAppliedJobs = async (req, res) => {
         }
 
         // Fetch job seeker details with user
-        const jobSeeker = await JobSeeker.findById(app.jobSeekerId)
-          .populate("userId", "name email")
-          .lean();
+        const jobSeeker = await JobSeeker.findById(app.jobSeekerId).lean();
 
         // Transform profile picture URL if needed
         if (jobSeeker?.profilePicture) {
           jobSeeker.profilePicture = getFullImageUrl(
             "profilePicture",
-            job.jobSeeker.profilePicture
+            jobSeeker.profilePicture
           );
         }
 
@@ -91,7 +159,7 @@ const getAppliedJobs = async (req, res) => {
                 bio: jobSeeker.bio,
                 skills: jobSeeker.skills,
                 profilePicture: jobSeeker.profilePicture,
-                user: jobSeeker.userId,
+                // Removed the user object.
               }
             : null,
         };
@@ -107,43 +175,105 @@ const getAppliedJobs = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 class ApplicationController {
+  // async create(req, res) {
+  //   try {
+  //     const { jobId } = req.body;
+  //     const userId = req.user.id;
+
+  //     // Find job seeker profile
+  //     const jobSeeker = await JobSeeker.findOne({ userId });
+  //     if (!jobSeeker) {
+  //       return res.status(403).json({
+  //         success: false,
+  //         message: "Complete your job seeker profile first",
+  //       });
+  //     }
+
+  //     // Check for existing application
+  //     const existingApplication =
+  //       await applicationService.checkExistingApplication(jobId, jobSeeker._id);
+  //     if (existingApplication) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: "You've already applied to this job",
+  //       });
+  //     }
+
+  //     // Create new application
+  //     const newApplication = await applicationService.createApplication({
+  //       jobId,
+  //       jobSeekerId: jobSeeker._id,
+  //       status: "Pending",
+  //     });
+
+  //     // Increment job application count
+  //     await applicationService.incrementJobApplicationCount(jobId);
+
+  //     res.status(201).json({ success: true, data: newApplication });
+  //   } catch (error) {
+  //     res.status(500).json({ success: false, message: error.message });
+  //   }
+  // }
   async create(req, res) {
     try {
       const { jobId } = req.body;
       const userId = req.user.id;
 
-      // Find job seeker profile
+      // Existing checks remain the same
       const jobSeeker = await JobSeeker.findOne({ userId });
       if (!jobSeeker) {
-        return res.status(403).json({
-          success: false,
-          message: "Complete your job seeker profile first",
-        });
+        return res
+          .status(403)
+          .json({
+            success: false,
+            message: "Complete your job seeker profile first",
+          });
       }
 
-      // Check for existing application
       const existingApplication =
         await applicationService.checkExistingApplication(jobId, jobSeeker._id);
       if (existingApplication) {
-        return res.status(400).json({
-          success: false,
-          message: "You've already applied to this job",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "You've already applied to this job",
+          });
       }
 
-      // Create new application
+      // Create application
       const newApplication = await applicationService.createApplication({
         jobId,
         jobSeekerId: jobSeeker._id,
         status: "Pending",
       });
 
-      // Increment job application count
-      await applicationService.incrementJobApplicationCount(jobId);
+      // Get minimal job data (like in getSimpleAppliedJobs)
+      const job = await Job.findById(jobId)
+        .select("title employer location")
+        .populate("employer", "companyName companyLogo")
+        .lean();
 
-      res.status(201).json({ success: true, data: newApplication });
+      // Format response to match your entity
+      const responseData = {
+        _id: newApplication._id,
+        job: {
+          _id: job._id,
+          title: job.title,
+          employer: {
+            companyName: job.employer.companyName,
+            companyLogo: job.employer.companyLogo
+              ? getFullImageUrl("companyLogo", job.employer.companyLogo)
+              : null,
+          },
+          location: job.location,
+        },
+        status: newApplication.status,
+        applicationDate: newApplication.applicationDate,
+      };
+
+      res.status(201).json({ success: true, data: responseData });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -227,12 +357,10 @@ class ApplicationController {
       });
 
       if (!application || !application.jobId) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message: "Application not found or unauthorized",
-          });
+        return res.status(404).json({
+          success: false,
+          message: "Application not found or unauthorized",
+        });
       }
 
       // Update application
@@ -321,6 +449,52 @@ const getApplicantsForJob = async (req, res) => {
     });
   }
 };
+const getSimpleAppliedJobs = async (req, res) => {
+  try {
+    const { jobSeekerId } = req.params;
+
+    const applications = await Application.find({ jobSeekerId });
+
+    const simpleApplications = await Promise.all(
+      applications.map(async (app) => {
+        const job = await Job.findById(app.jobId)
+          .select("title employer location")
+          .populate("employer", "companyName companyLogo")
+          .lean();
+
+        if (job?.employer?.companyLogo) {
+          job.employer.companyLogo = getFullImageUrl(
+            "companyLogo",
+            job.employer.companyLogo
+          );
+        }
+
+        return {
+          _id: app._id,
+          job: {
+            _id: job?._id,
+            title: job?.title,
+            employer: {
+              companyName: job?.employer?.companyName,
+              companyLogo: job?.employer?.companyLogo,
+            },
+            location: job?.location,
+          },
+          status: app.status,
+          applicationDate: app.applicationDate,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: simpleApplications,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
 const applicationController = new ApplicationController();
 
 module.exports = {
@@ -328,5 +502,6 @@ module.exports = {
   getAppliedJobs,
   isApplied,
   getApplicantsForJob,
+  getSimpleAppliedJobs,
   withdrawApplication: applicationController.withdraw,
 };

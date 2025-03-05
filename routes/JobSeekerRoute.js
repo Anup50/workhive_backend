@@ -1,5 +1,8 @@
 const express = require("express");
-const jobSeekerController = require("../controller/JobSeekerController.js");
+const {
+  jobSeekerController,
+  getSimpleJobSeekerById,
+} = require("../controller/JobSeekerController.js");
 const upload = require("../middleware/ProfilePicMiddleware.js");
 const { authenticateToken } = require("../security/Auth");
 const router = express.Router();
@@ -10,8 +13,15 @@ router.get(
 );
 router.post("/", jobSeekerController.create);
 router.post("/uploadImage", upload, jobSeekerController.uploadImage);
-router.get("/:id", jobSeekerController.getById);
-router.put("/update/:id", upload, jobSeekerController.update);
+router.get("/:id", authenticateToken, jobSeekerController.getById);
+router.get("/getbyid/:id", authenticateToken, jobSeekerController.getById);
+router.get("/simplegetbyid/:id", authenticateToken, getSimpleJobSeekerById);
+router.put(
+  "/update/:id",
+  upload,
+  authenticateToken,
+  jobSeekerController.update
+);
 router.delete("/:id", jobSeekerController.delete);
 
 module.exports = router;

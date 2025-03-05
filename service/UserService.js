@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const User = require("../model/User");
 const Role = require("../model/Role");
+const JobSeeker = require("../model/JobSeeker");
+const Employer = require("../model/Employer");
+
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -37,7 +40,6 @@ async function registerUser({ name, email, password, role }) {
   return { success: true, message: "User registered successfully" };
 }
 
-// Login User
 async function loginUser({ email, password }) {
   const user = await User.findOne({ email }).populate("role");
   if (!user) {
@@ -49,10 +51,22 @@ async function loginUser({ email, password }) {
     throw { status: 401, message: "Invalid email or password" };
   }
 
+  // Retrieve role-specific ID (jobSeekerId or employerId)
+  const jobSeekerId = await JobSeeker.findOne({ userId: user._id }).select(
+    "_id"
+  );
+  const employerId = await Employer.findOne({ userId: user._id }).select("_id");
+
   // Generate token
   const token = generateToken(user);
 
-  return { token, role: user.role.role_name };
+  // Return role and specific ID
+  return {
+    token,
+    role: user.role.role_name,
+    jobSeekerId: jobSeekerId ? jobSeekerId._id : null,
+    employerId: employerId ? employerId._id : null,
+  };
 }
 
 module.exports = { registerUser, loginUser };

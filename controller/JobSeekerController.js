@@ -1,5 +1,7 @@
 const jobSeekerService = require("../service/JobSeekerService");
-
+const JobSeeker = require("../model/JobSeeker");
+const User = require("../model/User");
+const { getFullImageUrl } = require("../middleware/ImageUtils");
 class JobSeekerController {
   async create(req, res) {
     try {
@@ -98,8 +100,11 @@ class JobSeekerController {
         return res.json({ jobSeekerId: null });
       }
 
-      // If a JobSeeker profile exists, return the jobSeekerId
-      res.json({ jobSeekerId: jobSeeker._id });
+      res.status(200).json({
+        success: true,
+        message: "Job seeker ID retrieved successfully",
+        jobSeekerId: jobSeeker._id,
+      });
     } catch (error) {
       // Handle unexpected errors
       console.error("Error fetching job seeker:", error);
@@ -107,5 +112,161 @@ class JobSeekerController {
     }
   }
 }
+// const getSimpleJobSeekerById = async (req, res) => {
+//   try {
+//     const { jobSeekerId } = req.params;
 
+//     const jobSeeker = await JobSeeker.findById(jobSeekerId)
+//       .populate({
+//         path: "userId",
+//         select: "name email",
+//       })
+//       .lean(); // Convert to plain JavaScript object
+
+//     if (!jobSeeker) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Job seeker not found" });
+//     }
+
+// // Process profile picture URL
+// if (jobSeeker.profilePicture) {
+//   jobSeeker.profilePicture = getFullImageUrl(
+//     "profilePic",
+//     jobSeeker.profilePicture
+//   );
+// }
+
+//     // Simplify the response
+//     const simplifiedJobSeeker = {
+//       _id: jobSeeker._id,
+//       userId: jobSeeker.userId,
+//       profilePicture: jobSeeker.profilePicture,
+//       bio: jobSeeker.bio,
+//       location: jobSeeker.location,
+//       skills: jobSeeker.skills,
+//       createdAt: jobSeeker.createdAt,
+//       updatedAt: jobSeeker.updatedAt,
+//     };
+
+//     res.status(200).json({ success: true, data: simplifiedJobSeeker });
+//   } catch (error) {
+//     console.error("Error:", error);
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
+
+// const getSimpleJobSeekerById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const jobSeeker = await JobSeeker.findById(id)
+//       .populate({
+//         path: "userId",
+//         select: "username", // Only fetch the username from the User model
+//         model: User,
+//       })
+//       .select("-bookmarks -applications") // Exclude virtual fields
+//       .lean();
+
+//     if (!jobSeeker) {
+//       return res.status(404).json({ message: "Job Seeker not found" });
+//     }
+
+//     // Merge the username into the jobSeeker object
+//     const result = {
+//       ...jobSeeker,
+//       username: jobSeeker.userId.username,
+//     };
+
+//     // Remove the populated userId field from the result
+//     delete result.userId;
+
+//     res.json(result);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
+// const getSimpleJobSeekerById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const jobSeeker = await JobSeeker.findById(id)
+//       .populate({
+//         path: "userId",
+//         select: "name",
+//         model: User,
+//       })
+//       .select("-bookmarks -applications")
+//       .lean();
+
+//     if (!jobSeeker) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Job Seeker not found",
+//       });
+//     }
+
+//     jobSeeker.username = jobSeeker.userId.username;
+
+//     res.json({
+//       success: true,
+//       data: jobSeeker,
+//       message: "Job Seeker retrieved successfully",
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//     });
+//   }
+// };
+
+const getSimpleJobSeekerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const jobSeeker = await JobSeeker.findById(id)
+      .populate({
+        path: "userId",
+        select: "name",
+        model: User,
+      })
+      .select("-bookmarks -applications")
+      .lean();
+
+    if (!jobSeeker) {
+      return res.status(404).json({
+        success: false,
+        message: "Job Seeker not found",
+      });
+    }
+    // Flatten the userId object
+    if (jobSeeker.userId) {
+      jobSeeker.userName = jobSeeker.userId.name;
+      jobSeeker.userId = jobSeeker.userId._id;
+    }
+
+    res.json({
+      success: true,
+      data: jobSeeker,
+      message: "Job Seeker retrieved successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 module.exports = new JobSeekerController();
+const jobSeekerController = new JobSeekerController();
+
+module.exports = {
+  jobSeekerController,
+  getSimpleJobSeekerById,
+};

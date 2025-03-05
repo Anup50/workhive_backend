@@ -78,21 +78,39 @@ const update = async (req, res) => {
     res.status(500).json({ message: "Error updating user", error: e.message });
   }
 };
+
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const { token, role } = await UserService.loginUser({ email, password });
+    // Login user and get the token, role, and specificId (jobSeekerId or employerId)
+    const { token, role, jobSeekerId, employerId } =
+      await UserService.loginUser({ email, password });
 
+    // Set the token in the cookie
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production", // Ensure cookies are secure in production
       sameSite: "Strict",
-      maxAge: 60 * 60 * 1000,
+      maxAge: 60 * 60 * 1000, // 1 hour expiration
     });
 
-    //for mobile app
-    res.status(200).json({ message: "Login successful", token, role });
+    // Prepare the response based on the user's role
+    const response = {
+      message: "Login successful",
+      token,
+      role,
+    };
+
+    // Add jobSeekerId or employerId based on the role
+    if (role === "User" && jobSeekerId) {
+      response.jobSeekerId = jobSeekerId;
+    } else if (role === "Employer" && employerId) {
+      response.employerId = employerId;
+    }
+
+    // Send the response
+    res.status(200).json(response);
   } catch (e) {
     res.status(401).json({ message: "Invalid credentials", error: e.message });
   }

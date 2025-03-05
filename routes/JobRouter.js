@@ -91,7 +91,7 @@ router.get("/:id", getById);
 router.get(
   "/recommended/:jobSeekerId",
   authenticateToken,
-  allowSelfOrRole("User"),
+  // allowSelfOrRole("User"),
   getRecommended
 );
 

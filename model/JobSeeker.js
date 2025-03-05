@@ -39,6 +39,7 @@ const JobSeekerSchema = new mongoose.Schema(
 //   next();
 // });
 // Add to your JobSeekerSchema
+
 JobSeekerSchema.virtual("applications", {
   ref: "Application",
   localField: "_id",

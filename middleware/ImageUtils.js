@@ -13,7 +13,7 @@ function getFullImageUrl(imageType, filename) {
     case "companyLogo":
       imagePath = process.env.COMPANY_LOGO_PATH;
       break;
-    case "profilePic":
+    case "profilePicture":
       imagePath = process.env.PROFILE_PIC_PATH;
       break;
     case "resume":
